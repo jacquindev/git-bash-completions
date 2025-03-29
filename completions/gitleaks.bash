@@ -1,16 +1,14 @@
 # bash completion V2 for gitleaks                             -*- shell-script -*-
 
-__gitleaks_debug()
-{
+__gitleaks_debug() {
     if [[ -n ${BASH_COMP_DEBUG_FILE:-} ]]; then
-        echo "$*" >> "${BASH_COMP_DEBUG_FILE}"
+        echo "$*" >>"${BASH_COMP_DEBUG_FILE}"
     fi
 }
 
 # Macs have bash3 for which the bash-completion package doesn't include
 # _init_completion. This is a minimal version of that function.
-__gitleaks_init_completion()
-{
+__gitleaks_init_completion() {
     COMPREPLY=()
     _get_comp_words_by_ref "$@" cur prev words cword
 }
@@ -25,8 +23,8 @@ __gitleaks_get_completion_results() {
     args=("${words[@]:1}")
     requestComp="${words[0]} __complete ${args[*]}"
 
-    lastParam=${words[$((${#words[@]}-1))]}
-    lastChar=${lastParam:$((${#lastParam}-1)):1}
+    lastParam=${words[$((${#words[@]} - 1))]}
+    lastChar=${lastParam:$((${#lastParam} - 1)):1}
     __gitleaks_debug "lastParam ${lastParam}, lastChar ${lastChar}"
 
     if [ -z "${cur}" ] && [ "${lastChar}" != "=" ]; then
@@ -131,10 +129,10 @@ __gitleaks_handle_standard_completion_case() {
     # Look for the longest completion so that we can format things nicely
     while IFS='' read -r comp; do
         # Strip any description before checking the length
-        comp=${comp%%$tab*}
+        comp=${comp%%"$tab"*}
         # Only consider the completions that match
         comp=$(compgen -W "$comp" -- "$cur")
-        if ((${#comp}>longest)); then
+        if ((${#comp} > longest)); then
             longest=${#comp}
         fi
     done < <(printf "%s\n" "${out[@]}")
@@ -165,12 +163,11 @@ __gitleaks_handle_standard_completion_case() {
     fi
 }
 
-__gitleaks_handle_special_char()
-{
+__gitleaks_handle_special_char() {
     local comp="$1"
     local char=$2
     if [[ "$comp" == *${char}* && "$COMP_WORDBREAKS" == *${char}* ]]; then
-        local word=${comp%"${comp##*${char}}"}
+        local word=${comp%"${comp##*"${char}"}"}
         local idx=${#COMPREPLY[*]}
         while [[ $((--idx)) -ge 0 ]]; do
             COMPREPLY[$idx]=${COMPREPLY[$idx]#"$word"}
@@ -178,8 +175,7 @@ __gitleaks_handle_special_char()
     fi
 }
 
-__gitleaks_format_comp_descriptions()
-{
+__gitleaks_format_comp_descriptions() {
     local tab
     tab=$(printf '\t')
     local comp="$1"
@@ -187,30 +183,30 @@ __gitleaks_format_comp_descriptions()
 
     # Properly format the description string which follows a tab character if there is one
     if [[ "$comp" == *$tab* ]]; then
-        desc=${comp#*$tab}
-        comp=${comp%%$tab*}
+        desc=${comp#*"$tab"}
+        comp=${comp%%"$tab"*}
 
         # $COLUMNS stores the current shell width.
         # Remove an extra 4 because we add 2 spaces and 2 parentheses.
-        maxdesclength=$(( COLUMNS - longest - 4 ))
+        maxdesclength=$((COLUMNS - longest - 4))
 
         # Make sure we can fit a description of at least 8 characters
         # if we are to align the descriptions.
         if [[ $maxdesclength -gt 8 ]]; then
             # Add the proper number of spaces to align the descriptions
-            for ((i = ${#comp} ; i < longest ; i++)); do
+            for ((i = ${#comp}; i < longest; i++)); do
                 comp+=" "
             done
         else
             # Don't pad the descriptions so we can fit more text after the completion
-            maxdesclength=$(( COLUMNS - ${#comp} - 4 ))
+            maxdesclength=$((COLUMNS - ${#comp} - 4))
         fi
 
         # If there is enough space for any description text,
         # truncate the descriptions that are too long for the shell width
         if [ $maxdesclength -gt 0 ]; then
             if [ ${#desc} -gt $maxdesclength ]; then
-                desc=${desc:0:$(( maxdesclength - 1 ))}
+                desc=${desc:0:$((maxdesclength - 1))}
                 desc+="…"
             fi
             comp+="  ($desc)"
@@ -221,8 +217,7 @@ __gitleaks_format_comp_descriptions()
     printf "%q" "${comp}"
 }
 
-__start_gitleaks()
-{
+__start_gitleaks() {
     local cur prev words cword split
 
     COMPREPLY=()

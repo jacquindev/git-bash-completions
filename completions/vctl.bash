@@ -1,43 +1,39 @@
 # bash completion for vctl                                 -*- shell-script -*-
 
-__vctl_debug()
-{
+__vctl_debug() {
     if [[ -n ${BASH_COMP_DEBUG_FILE} ]]; then
-        echo "$*" >> "${BASH_COMP_DEBUG_FILE}"
+        echo "$*" >>"${BASH_COMP_DEBUG_FILE}"
     fi
 }
 
 # Homebrew on Macs have version 1.3 of bash-completion which doesn't include
 # _init_completion. This is a very minimal version of that function.
-__vctl_init_completion()
-{
+__vctl_init_completion() {
     COMPREPLY=()
     _get_comp_words_by_ref "$@" cur prev words cword
 }
 
-__vctl_index_of_word()
-{
+__vctl_index_of_word() {
     local w word=$1
     shift
     index=0
     for w in "$@"; do
         [[ $w = "$word" ]] && return
-        index=$((index+1))
+        index=$((index + 1))
     done
     index=-1
 }
 
-__vctl_contains_word()
-{
-    local w word=$1; shift
+__vctl_contains_word() {
+    local w word=$1
+    shift
     for w in "$@"; do
         [[ $w = "$word" ]] && return
     done
     return 1
 }
 
-__vctl_handle_go_custom_completion()
-{
+__vctl_handle_go_custom_completion() {
     __vctl_debug "${FUNCNAME[0]}: cur is ${cur}, words[*] is ${words[*]}, #words[@] is ${#words[@]}"
 
     local shellCompDirectiveError=1
@@ -53,8 +49,8 @@ __vctl_handle_go_custom_completion()
     args=("${words[@]:1}")
     requestComp="${words[0]} __completeNoDesc ${args[*]}"
 
-    lastParam=${words[$((${#words[@]}-1))]}
-    lastChar=${lastParam:$((${#lastParam}-1)):1}
+    lastParam=${words[$((${#words[@]} - 1))]}
+    lastChar=${lastParam:$((${#lastParam} - 1)):1}
     __vctl_debug "${FUNCNAME[0]}: lastParam ${lastParam}, lastChar ${lastChar}"
 
     if [ -z "${cur}" ] && [ "${lastChar}" != "=" ]; then
@@ -129,50 +125,49 @@ __vctl_handle_go_custom_completion()
     fi
 }
 
-__vctl_handle_reply()
-{
+__vctl_handle_reply() {
     __vctl_debug "${FUNCNAME[0]}"
     local comp
     case $cur in
-        -*)
+    -*)
+        if [[ $(type -t compopt) = "builtin" ]]; then
+            compopt -o nospace
+        fi
+        local allflags
+        if [ ${#must_have_one_flag[@]} -ne 0 ]; then
+            allflags=("${must_have_one_flag[@]}")
+        else
+            allflags=("${flags[*]} ${two_word_flags[*]}")
+        fi
+        while IFS='' read -r comp; do
+            COMPREPLY+=("$comp")
+        done < <(compgen -W "${allflags[*]}" -- "$cur")
+        if [[ $(type -t compopt) = "builtin" ]]; then
+            [[ "${COMPREPLY[0]}" == *= ]] || compopt +o nospace
+        fi
+
+        # complete after --flag=abc
+        if [[ $cur == *=* ]]; then
             if [[ $(type -t compopt) = "builtin" ]]; then
-                compopt -o nospace
-            fi
-            local allflags
-            if [ ${#must_have_one_flag[@]} -ne 0 ]; then
-                allflags=("${must_have_one_flag[@]}")
-            else
-                allflags=("${flags[*]} ${two_word_flags[*]}")
-            fi
-            while IFS='' read -r comp; do
-                COMPREPLY+=("$comp")
-            done < <(compgen -W "${allflags[*]}" -- "$cur")
-            if [[ $(type -t compopt) = "builtin" ]]; then
-                [[ "${COMPREPLY[0]}" == *= ]] || compopt +o nospace
+                compopt +o nospace
             fi
 
-            # complete after --flag=abc
-            if [[ $cur == *=* ]]; then
-                if [[ $(type -t compopt) = "builtin" ]]; then
-                    compopt +o nospace
-                fi
-
-                local index flag
-                flag="${cur%=*}"
-                __vctl_index_of_word "${flag}" "${flags_with_completion[@]}"
-                COMPREPLY=()
-                if [[ ${index} -ge 0 ]]; then
-                    PREFIX=""
-                    cur="${cur#*=}"
-                    ${flags_completion[${index}]}
-                    if [ -n "${ZSH_VERSION}" ]; then
-                        # zsh completion needs --flag= prefix
-                        eval "COMPREPLY=( \"\${COMPREPLY[@]/#/${flag}=}\" )"
-                    fi
+            local index flag
+            flag="${cur%=*}"
+            __vctl_index_of_word "${flag}" "${flags_with_completion[@]}"
+            COMPREPLY=()
+            if [[ ${index} -ge 0 ]]; then
+                PREFIX=""
+                cur="${cur#*=}"
+                ${flags_completion[${index}]}
+                if [ -n "${ZSH_VERSION}" ]; then
+                    # zsh completion needs --flag= prefix
+                    eval "COMPREPLY=( \"\${COMPREPLY[@]/#/${flag}=}\" )"
                 fi
             fi
-            return 0;
-            ;;
+        fi
+        return 0
+        ;;
     esac
 
     # check if we are handling a flag with special work handling
@@ -210,13 +205,13 @@ __vctl_handle_reply()
     fi
 
     if [[ ${#COMPREPLY[@]} -eq 0 ]]; then
-		if declare -F __vctl_custom_func >/dev/null; then
-			# try command name qualified custom func
-			__vctl_custom_func
-		else
-			# otherwise fall back to unqualified for compatibility
-			declare -F __custom_func >/dev/null && __custom_func
-		fi
+        if declare -F __vctl_custom_func >/dev/null; then
+            # try command name qualified custom func
+            __vctl_custom_func
+        else
+            # otherwise fall back to unqualified for compatibility
+            declare -F __custom_func >/dev/null && __custom_func
+        fi
     fi
 
     # available in bash-completion >= 2, not always present on macOS
@@ -227,25 +222,22 @@ __vctl_handle_reply()
     # If there is only 1 completion and it is a flag with an = it will be completed
     # but we don't want a space after the =
     if [[ "${#COMPREPLY[@]}" -eq "1" ]] && [[ $(type -t compopt) = "builtin" ]] && [[ "${COMPREPLY[0]}" == --*= ]]; then
-       compopt -o nospace
+        compopt -o nospace
     fi
 }
 
 # The arguments should be in the form "ext1|ext2|extn"
-__vctl_handle_filename_extension_flag()
-{
+__vctl_handle_filename_extension_flag() {
     local ext="$1"
     _filedir "@(${ext})"
 }
 
-__vctl_handle_subdirs_in_dir_flag()
-{
+__vctl_handle_subdirs_in_dir_flag() {
     local dir="$1"
     pushd "${dir}" >/dev/null 2>&1 && _filedir -d && popd >/dev/null 2>&1 || return
 }
 
-__vctl_handle_flag()
-{
+__vctl_handle_flag() {
     __vctl_debug "${FUNCNAME[0]}: c is $c words[c] is ${words[c]}"
 
     # if a command required a flag, and we found it, unset must_have_one_flag()
@@ -254,8 +246,8 @@ __vctl_handle_flag()
     # if the word contained an =
     if [[ ${words[c]} == *"="* ]]; then
         flagvalue=${flagname#*=} # take in as flagvalue after the =
-        flagname=${flagname%=*} # strip everything after the =
-        flagname="${flagname}=" # but put the = back
+        flagname=${flagname%=*}  # strip everything after the =
+        flagname="${flagname}="  # but put the = back
     fi
     __vctl_debug "${FUNCNAME[0]}: looking for ${flagname}"
     if __vctl_contains_word "${flagname}" "${must_have_one_flag[@]}"; then
@@ -264,16 +256,16 @@ __vctl_handle_flag()
 
     # if you set a flag which only applies to this command, don't show subcommands
     if __vctl_contains_word "${flagname}" "${local_nonpersistent_flags[@]}"; then
-      commands=()
+        commands=()
     fi
 
     # keep flag value with flagname as flaghash
     # flaghash variable is an associative array which is only supported in bash > 3.
     if [[ -z "${BASH_VERSION}" || "${BASH_VERSINFO[0]}" -gt 3 ]]; then
-        if [ -n "${flagvalue}" ] ; then
+        if [ -n "${flagvalue}" ]; then
             flaghash[${flagname}]=${flagvalue}
-        elif [ -n "${words[ $((c+1)) ]}" ] ; then
-            flaghash[${flagname}]=${words[ $((c+1)) ]}
+        elif [ -n "${words[$((c + 1))]}" ]; then
+            flaghash[${flagname}]=${words[$((c + 1))]}
         else
             flaghash[${flagname}]="true" # pad "true" for bool flag
         fi
@@ -281,20 +273,19 @@ __vctl_handle_flag()
 
     # skip the argument to a two word flag
     if [[ ${words[c]} != *"="* ]] && __vctl_contains_word "${words[c]}" "${two_word_flags[@]}"; then
-			  __vctl_debug "${FUNCNAME[0]}: found a flag ${words[c]}, skip the next argument"
-        c=$((c+1))
+        __vctl_debug "${FUNCNAME[0]}: found a flag ${words[c]}, skip the next argument"
+        c=$((c + 1))
         # if we are looking for a flags value, don't show commands
         if [[ $c -eq $cword ]]; then
             commands=()
         fi
     fi
 
-    c=$((c+1))
+    c=$((c + 1))
 
 }
 
-__vctl_handle_noun()
-{
+__vctl_handle_noun() {
     __vctl_debug "${FUNCNAME[0]}: c is $c words[c] is ${words[c]}"
 
     if __vctl_contains_word "${words[c]}" "${must_have_one_noun[@]}"; then
@@ -304,11 +295,10 @@ __vctl_handle_noun()
     fi
 
     nouns+=("${words[c]}")
-    c=$((c+1))
+    c=$((c + 1))
 }
 
-__vctl_handle_command()
-{
+__vctl_handle_command() {
     __vctl_debug "${FUNCNAME[0]}: c is $c words[c] is ${words[c]}"
 
     local next_command
@@ -321,13 +311,12 @@ __vctl_handle_command()
             next_command="_${words[c]//:/__}"
         fi
     fi
-    c=$((c+1))
+    c=$((c + 1))
     __vctl_debug "${FUNCNAME[0]}: looking for ${next_command}"
     declare -F "$next_command" >/dev/null && $next_command
 }
 
-__vctl_handle_word()
-{
+__vctl_handle_word() {
     if [[ $c -ge $cword ]]; then
         __vctl_handle_reply
         return
@@ -353,8 +342,7 @@ __vctl_handle_word()
     __vctl_handle_word
 }
 
-_vctl_build()
-{
+_vctl_build() {
     last_command="vctl_build"
 
     command_aliases=()
@@ -403,8 +391,7 @@ _vctl_build()
     noun_aliases=()
 }
 
-_vctl_completion()
-{
+_vctl_completion() {
     last_command="vctl_completion"
 
     command_aliases=()
@@ -431,8 +418,7 @@ _vctl_completion()
     noun_aliases=()
 }
 
-_vctl_create()
-{
+_vctl_create() {
     last_command="vctl_create"
 
     command_aliases=()
@@ -508,8 +494,7 @@ _vctl_create()
     noun_aliases=()
 }
 
-_vctl_describe()
-{
+_vctl_describe() {
     last_command="vctl_describe"
 
     command_aliases=()
@@ -522,15 +507,13 @@ _vctl_describe()
     flags_with_completion=()
     flags_completion=()
 
-
     must_have_one_flag=()
     must_have_one_noun=()
     has_completion_function=1
     noun_aliases=()
 }
 
-_vctl_exec()
-{
+_vctl_exec() {
     last_command="vctl_exec"
 
     command_aliases=()
@@ -562,8 +545,7 @@ _vctl_exec()
     noun_aliases=()
 }
 
-_vctl_execvm()
-{
+_vctl_execvm() {
     last_command="vctl_execvm"
 
     command_aliases=()
@@ -596,8 +578,7 @@ _vctl_execvm()
     noun_aliases=()
 }
 
-_vctl_help()
-{
+_vctl_help() {
     last_command="vctl_help"
 
     command_aliases=()
@@ -610,15 +591,13 @@ _vctl_help()
     flags_with_completion=()
     flags_completion=()
 
-
     must_have_one_flag=()
     must_have_one_noun=()
     has_completion_function=1
     noun_aliases=()
 }
 
-_vctl_images()
-{
+_vctl_images() {
     last_command="vctl_images"
 
     command_aliases=()
@@ -642,8 +621,7 @@ _vctl_images()
     noun_aliases=()
 }
 
-_vctl_inspect()
-{
+_vctl_inspect() {
     last_command="vctl_inspect"
 
     command_aliases=()
@@ -656,15 +634,13 @@ _vctl_inspect()
     flags_with_completion=()
     flags_completion=()
 
-
     must_have_one_flag=()
     must_have_one_noun=()
     has_completion_function=1
     noun_aliases=()
 }
 
-_vctl_kind()
-{
+_vctl_kind() {
     last_command="vctl_kind"
 
     command_aliases=()
@@ -677,14 +653,12 @@ _vctl_kind()
     flags_with_completion=()
     flags_completion=()
 
-
     must_have_one_flag=()
     must_have_one_noun=()
     noun_aliases=()
 }
 
-_vctl_login()
-{
+_vctl_login() {
     last_command="vctl_login"
 
     command_aliases=()
@@ -721,8 +695,7 @@ _vctl_login()
     noun_aliases=()
 }
 
-_vctl_logout()
-{
+_vctl_logout() {
     last_command="vctl_logout"
 
     command_aliases=()
@@ -735,14 +708,12 @@ _vctl_logout()
     flags_with_completion=()
     flags_completion=()
 
-
     must_have_one_flag=()
     must_have_one_noun=()
     noun_aliases=()
 }
 
-_vctl_ps()
-{
+_vctl_ps() {
     last_command="vctl_ps"
 
     command_aliases=()
@@ -771,8 +742,7 @@ _vctl_ps()
     noun_aliases=()
 }
 
-_vctl_pull()
-{
+_vctl_pull() {
     last_command="vctl_pull"
 
     command_aliases=()
@@ -810,8 +780,7 @@ _vctl_pull()
     noun_aliases=()
 }
 
-_vctl_push()
-{
+_vctl_push() {
     last_command="vctl_push"
 
     command_aliases=()
@@ -849,8 +818,7 @@ _vctl_push()
     noun_aliases=()
 }
 
-_vctl_rm()
-{
+_vctl_rm() {
     last_command="vctl_rm"
 
     command_aliases=()
@@ -882,8 +850,7 @@ _vctl_rm()
     noun_aliases=()
 }
 
-_vctl_rmi()
-{
+_vctl_rmi() {
     last_command="vctl_rmi"
 
     command_aliases=()
@@ -911,8 +878,7 @@ _vctl_rmi()
     noun_aliases=()
 }
 
-_vctl_run()
-{
+_vctl_run() {
     last_command="vctl_run"
 
     command_aliases=()
@@ -1008,8 +974,7 @@ _vctl_run()
     noun_aliases=()
 }
 
-_vctl_start()
-{
+_vctl_start() {
     last_command="vctl_start"
 
     command_aliases=()
@@ -1047,8 +1012,7 @@ _vctl_start()
     noun_aliases=()
 }
 
-_vctl_stop()
-{
+_vctl_stop() {
     last_command="vctl_stop"
 
     command_aliases=()
@@ -1061,15 +1025,13 @@ _vctl_stop()
     flags_with_completion=()
     flags_completion=()
 
-
     must_have_one_flag=()
     must_have_one_noun=()
     has_completion_function=1
     noun_aliases=()
 }
 
-_vctl_system_config()
-{
+_vctl_system_config() {
     last_command="vctl_system_config"
 
     command_aliases=()
@@ -1098,8 +1060,7 @@ _vctl_system_config()
     noun_aliases=()
 }
 
-_vctl_system_info()
-{
+_vctl_system_info() {
     last_command="vctl_system_info"
 
     command_aliases=()
@@ -1112,14 +1073,12 @@ _vctl_system_info()
     flags_with_completion=()
     flags_completion=()
 
-
     must_have_one_flag=()
     must_have_one_noun=()
     noun_aliases=()
 }
 
-_vctl_system_start()
-{
+_vctl_system_start() {
     last_command="vctl_system_start"
 
     command_aliases=()
@@ -1143,8 +1102,7 @@ _vctl_system_start()
     noun_aliases=()
 }
 
-_vctl_system_stop()
-{
+_vctl_system_stop() {
     last_command="vctl_system_stop"
 
     command_aliases=()
@@ -1167,8 +1125,7 @@ _vctl_system_stop()
     noun_aliases=()
 }
 
-_vctl_system()
-{
+_vctl_system() {
     last_command="vctl_system"
 
     command_aliases=()
@@ -1185,14 +1142,12 @@ _vctl_system()
     flags_with_completion=()
     flags_completion=()
 
-
     must_have_one_flag=()
     must_have_one_noun=()
     noun_aliases=()
 }
 
-_vctl_tag()
-{
+_vctl_tag() {
     last_command="vctl_tag"
 
     command_aliases=()
@@ -1216,8 +1171,7 @@ _vctl_tag()
     noun_aliases=()
 }
 
-_vctl_version()
-{
+_vctl_version() {
     last_command="vctl_version"
 
     command_aliases=()
@@ -1230,14 +1184,12 @@ _vctl_version()
     flags_with_completion=()
     flags_completion=()
 
-
     must_have_one_flag=()
     must_have_one_noun=()
     noun_aliases=()
 }
 
-_vctl_volume_prune()
-{
+_vctl_volume_prune() {
     last_command="vctl_volume_prune"
 
     command_aliases=()
@@ -1260,8 +1212,7 @@ _vctl_volume_prune()
     noun_aliases=()
 }
 
-_vctl_volume()
-{
+_vctl_volume() {
     last_command="vctl_volume"
 
     command_aliases=()
@@ -1275,14 +1226,12 @@ _vctl_volume()
     flags_with_completion=()
     flags_completion=()
 
-
     must_have_one_flag=()
     must_have_one_noun=()
     noun_aliases=()
 }
 
-_vctl_root_command()
-{
+_vctl_root_command() {
     last_command="vctl"
 
     command_aliases=()
@@ -1323,14 +1272,12 @@ _vctl_root_command()
     flags_with_completion=()
     flags_completion=()
 
-
     must_have_one_flag=()
     must_have_one_noun=()
     noun_aliases=()
 }
 
-__start_vctl()
-{
+__start_vctl() {
     local cur prev words cword
     declare -A flaghash 2>/dev/null || :
     declare -A aliashash 2>/dev/null || :

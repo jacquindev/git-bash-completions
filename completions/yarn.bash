@@ -42,25 +42,25 @@ __yarn_get_package_fields() {
 
 	while getopts ":gt:" opt; do
 		case $opt in
-			g)
-				if [[ -f $HOME/.config/yarn/global/package.json ]]; then
-					package_dot_json="$HOME/.config/yarn/global/package.json"
-				elif [[ -f $HOME/.local/share/yarn/global/package.json ]]; then
-					package_dot_json="$HOME/.local/share/yarn/global/package.json"
-				elif [[ -f $HOME/.yarn/global/package.json ]]; then
-					package_dot_json="$HOME/.yarn/global/package.json"
-				else
-					package_dot_json=""
-				fi
+		g)
+			if [[ -f $HOME/.config/yarn/global/package.json ]]; then
+				package_dot_json="$HOME/.config/yarn/global/package.json"
+			elif [[ -f $HOME/.local/share/yarn/global/package.json ]]; then
+				package_dot_json="$HOME/.local/share/yarn/global/package.json"
+			elif [[ -f $HOME/.yarn/global/package.json ]]; then
+				package_dot_json="$HOME/.yarn/global/package.json"
+			else
+				package_dot_json=""
+			fi
+			;;
+		t)
+			case "$OPTARG" in
+			array | boolean | number | object | string)
+				field_type="$OPTARG"
 				;;
-			t)
-				case "$OPTARG" in
-					array | boolean | number | object | string)
-						field_type="$OPTARG"
-						;;
-				esac
-				;;
-			*) ;;
+			esac
+			;;
+		*) ;;
 
 		esac
 	done
@@ -71,30 +71,30 @@ __yarn_get_package_fields() {
 	[[ ! -f $package_dot_json || ! $field_key ]] && return
 
 	case "$field_type" in
-		object)
-			sed -n '/'"$field_key"':[[:space:]]*{/,/^[[:space:]]*}/{
+	object)
+		sed -n '/'"$field_key"':[[:space:]]*{/,/^[[:space:]]*}/{
 				# exclude start and end patterns
 				//!{
 					# extract the text between the first pair of double quotes
 					s/^[[:space:]]*"\([^"]*\).*/\1/p
 				}
 			}' "$package_dot_json"
-			;;
-		array)
-			sed -n '/'"$field_key"':[[:space:]]*\[/,/^[[:space:]]*]/{
+		;;
+	array)
+		sed -n '/'"$field_key"':[[:space:]]*\[/,/^[[:space:]]*]/{
 				# exclude start and end patterns
 				//!{
 					# extract the text between the first pair of double quotes
 					s/^[[:space:]]*"\([^"]*\).*/\1/p
 				}
 			}' "$package_dot_json"
-			;;
-		boolean | number)
-			sed -n 's/[[:space:]]*'"$field_key"':[[:space:]]*\([a-z0-9]*\)/\1/p' "$package_dot_json"
-			;;
-		string)
-			sed -n 's/[[:space:]]*'"$field_key"':[[:space:]]*"\(.*\)".*/\1/p' "$package_dot_json"
-			;;
+		;;
+	boolean | number)
+		sed -n 's/[[:space:]]*'"$field_key"':[[:space:]]*\([a-z0-9]*\)/\1/p' "$package_dot_json"
+		;;
+	string)
+		sed -n 's/[[:space:]]*'"$field_key"':[[:space:]]*"\(.*\)".*/\1/p' "$package_dot_json"
+		;;
 	esac
 }
 
@@ -116,29 +116,29 @@ __yarn_count_args() {
 	args=0
 	declare -i counter=0 depth=0
 	declare arg_flag_pattern opt OPTIND
-	arg_flag_pattern="@($(tr ' ' '|' <<< "${arg_flags[*]}"))"
+	arg_flag_pattern="@($(tr ' ' '|' <<<"${arg_flags[*]}"))"
 
 	while getopts ":d:" opt; do
 		case $opt in
-			d)
-				depth=$OPTARG
-				;;
-			*) ;;
+		d)
+			depth=$OPTARG
+			;;
+		*) ;;
 		esac
 	done
 	shift $((OPTIND - 1))
 
 	while ((counter < cword)); do
 		case ${words[counter]} in
-			-* | =) ;;
-			*)
-				# shellcheck disable=SC2053
-				if [[ ${words[counter - 1]} != $arg_flag_pattern ]]; then
-					if ((depth-- <= 0)); then
-						((args++))
-					fi
+		-* | =) ;;
+		*)
+			# shellcheck disable=SC2053
+			if [[ ${words[counter - 1]} != $arg_flag_pattern ]]; then
+				if ((depth-- <= 0)); then
+					((args++))
 				fi
-				;;
+			fi
+			;;
 		esac
 		((counter++))
 	done
@@ -168,24 +168,24 @@ __yarn_get_command() {
 
 	while getopts ":d:" opt; do
 		case $opt in
-			d)
-				cmd_depth="$OPTARG"
-				;;
-			*) ;;
+		d)
+			cmd_depth="$OPTARG"
+			;;
+		*) ;;
 		esac
 	done
 	shift $((OPTIND - 1))
 
-	cmdlist="@($(tr ' ' '|' <<< "${commands[*]} ${subcommands[*]}"))"
+	cmdlist="@($(tr ' ' '|' <<<"${commands[*]} ${subcommands[*]}"))"
 	cmd=yarn
 
 	while ((counter < cword)); do
 		word="${words[counter]}"
 		case "$word" in
-			$cmdlist)
-				cmd="$word"
-				((--cmd_depth == 0)) && break
-				;;
+		$cmdlist)
+			cmd="$word"
+			((--cmd_depth == 0)) && break
+			;;
 		esac
 		((counter++))
 	done
@@ -202,12 +202,12 @@ __yarn_get_command() {
 ##
 __yarn_fallback() {
 	case "$cur" in
-		-*)
-			COMPREPLY=($(compgen -W "$(__yarn_flags)" -- "$cur"))
-			;;
-		*)
-			COMPREPLY=($(compgen -o plusdirs -f -- "$cur"))
-			;;
+	-*)
+		COMPREPLY=($(compgen -W "$(__yarn_flags)" -- "$cur"))
+		;;
+	*)
+		COMPREPLY=($(compgen -o plusdirs -f -- "$cur"))
+		;;
 	esac
 }
 
@@ -229,9 +229,9 @@ __yarn_flags() {
 
 	for word in "${words[@]}"; do
 		case "$word" in
-			-*)
-				existing_flags+=("$word")
-				;;
+		-*)
+			existing_flags+=("$word")
+			;;
 		esac
 	done
 
@@ -252,50 +252,50 @@ __yarn_flags() {
 ##
 __yarn_flag_args() {
 	declare {arg,bool,dir,file,int,special}_flag_pattern
-	arg_flag_pattern="@($(tr ' ' '|' <<< "${arg_flags[*]}"))"
+	arg_flag_pattern="@($(tr ' ' '|' <<<"${arg_flags[*]}"))"
 
 	# shellcheck disable=SC2053
 	if [[ $prev != $arg_flag_pattern ]]; then
 		return 1
 	fi
 
-	bool_flag_pattern="@($(tr ' ' '|' <<< "${bool_arg_flags[*]}"))"
-	dir_flag_pattern="@($(tr ' ' '|' <<< "${dir_arg_flags[*]}"))"
-	file_flag_pattern="@($(tr ' ' '|' <<< "${file_arg_flags[*]}"))"
-	int_flag_pattern="@($(tr ' ' '|' <<< "${int_arg_flags[*]}"))"
-	special_flag_pattern="@($(tr ' ' '|' <<< "${special_arg_flags[*]}"))"
+	bool_flag_pattern="@($(tr ' ' '|' <<<"${bool_arg_flags[*]}"))"
+	dir_flag_pattern="@($(tr ' ' '|' <<<"${dir_arg_flags[*]}"))"
+	file_flag_pattern="@($(tr ' ' '|' <<<"${file_arg_flags[*]}"))"
+	int_flag_pattern="@($(tr ' ' '|' <<<"${int_arg_flags[*]}"))"
+	special_flag_pattern="@($(tr ' ' '|' <<<"${special_arg_flags[*]}"))"
 
 	case "$prev" in
-		$bool_flag_pattern)
-			COMPREPLY=($(compgen -W 'true false' -- "$cur"))
+	$bool_flag_pattern)
+		COMPREPLY=($(compgen -W 'true false' -- "$cur"))
+		;;
+	$dir_flag_pattern)
+		compopt -o dirnames
+		;;
+	$file_flag_pattern)
+		compopt -o default -o filenames
+		;;
+	$int_flag_pattern)
+		compopt -o nospace
+		COMPREPLY=($(compgen -W '{0..9}' -- "$cur"))
+		;;
+	$special_flag_pattern)
+		case "$prev" in
+		--access)
+			COMPREPLY=($(compgen -W 'public restricted' -- "$cur"))
 			;;
-		$dir_flag_pattern)
-			compopt -o dirnames
+		--groups)
+			COMPREPLY=($(compgen -W 'dependencies devDependencies optionalDependencies' -- "$cur"))
 			;;
-		$file_flag_pattern)
-			compopt -o default -o filenames
+		--level)
+			COMPREPLY=($(compgen -W 'info low moderate high critical' -- "$cur"))
 			;;
-		$int_flag_pattern)
+		--network-timeout)
 			compopt -o nospace
-			COMPREPLY=($(compgen -W '{0..9}' -- "$cur"))
+			COMPREPLY=($(compgen -W '{1000..10000..1000}' -- "$cur"))
 			;;
-		$special_flag_pattern)
-			case "$prev" in
-				--access)
-					COMPREPLY=($(compgen -W 'public restricted' -- "$cur"))
-					;;
-				--groups)
-					COMPREPLY=($(compgen -W 'dependencies devDependencies optionalDependencies' -- "$cur"))
-					;;
-				--level)
-					COMPREPLY=($(compgen -W 'info low moderate high critical' -- "$cur"))
-					;;
-				--network-timeout)
-					compopt -o nospace
-					COMPREPLY=($(compgen -W '{1000..10000..1000}' -- "$cur"))
-					;;
-			esac
-			;;
+		esac
+		;;
 	esac
 	return 0
 }
@@ -347,20 +347,20 @@ _yarn_cache() {
 	__yarn_get_command
 
 	case "$cmd" in
-		cache)
-			case "$cur" in
-				-*)
-					return 1
-					;;
-				*)
-					COMPREPLY=($(compgen -W "${subcommands[*]}" -- "$cur"))
-					return 0
-					;;
-			esac
-			;;
-		*)
+	cache)
+		case "$cur" in
+		-*)
 			return 1
 			;;
+		*)
+			COMPREPLY=($(compgen -W "${subcommands[*]}" -- "$cur"))
+			return 0
+			;;
+		esac
+		;;
+	*)
+		return 1
+		;;
 	esac
 }
 
@@ -404,41 +404,41 @@ _yarn_config() {
 	__yarn_get_command
 
 	case "$cmd" in
-		get | delete)
-			case "$cur" in
-				-*) ;;
-				*)
-					if [[ $prev == @(get|delete) ]]; then
-						COMPREPLY=($(compgen -W "${known_keys[*]}" -- "$cur"))
-						return 0
-					fi
-					;;
-			esac
+	get | delete)
+		case "$cur" in
+		-*) ;;
+		*)
+			if [[ $prev == @(get|delete) ]]; then
+				COMPREPLY=($(compgen -W "${known_keys[*]}" -- "$cur"))
+				return 0
+			fi
 			;;
-		set)
-			case "$cur" in
-				-*)
-					flags=(
-						--global
-					)
-					;;
-				*)
-					if [[ $prev == set ]]; then
-						COMPREPLY=($(compgen -W "${known_keys[*]}" -- "$cur"))
-						return 0
-					fi
-					;;
-			esac
+		esac
+		;;
+	set)
+		case "$cur" in
+		-*)
+			flags=(
+				--global
+			)
 			;;
-		config)
-			case "$cur" in
-				-*) ;;
-				*)
-					COMPREPLY=($(compgen -W "${subcommands[*]}" -- "$cur"))
-					return 0
-					;;
-			esac
+		*)
+			if [[ $prev == set ]]; then
+				COMPREPLY=($(compgen -W "${known_keys[*]}" -- "$cur"))
+				return 0
+			fi
 			;;
+		esac
+		;;
+	config)
+		case "$cur" in
+		-*) ;;
+		*)
+			COMPREPLY=($(compgen -W "${subcommands[*]}" -- "$cur"))
+			return 0
+			;;
+		esac
+		;;
 	esac
 	return 1
 }
@@ -447,11 +447,11 @@ _yarn_create() {
 	((depth++))
 	declare -i args
 	case "$cur" in
-		-*) ;;
-		*)
-			__yarn_count_args -d $depth
-			((args == 0)) && return 0
-			;;
+	-*) ;;
+	*)
+		__yarn_count_args -d $depth
+		((args == 0)) && return 0
+		;;
 	esac
 	return 1
 }
@@ -480,24 +480,24 @@ _yarn_global() {
 		upgrade
 		upgrade-interactive
 	)
-	cmdlist="@($(tr ' ' '|' <<< "${subcommands[*]}"))"
+	cmdlist="@($(tr ' ' '|' <<<"${subcommands[*]}"))"
 
 	__yarn_get_command -d 3
 
 	case "$cur" in
-		-*) ;;
-		*)
-			case "$cmd" in
-				$cmdlist)
-					"_yarn_${cmd//-/_}" 2> /dev/null
-					return $?
-					;;
-				global)
-					COMPREPLY=($(compgen -W "${subcommands[*]}" -- "$cur"))
-					return 0
-					;;
-			esac
+	-*) ;;
+	*)
+		case "$cmd" in
+		$cmdlist)
+			"_yarn_${cmd//-/_}" 2>/dev/null
+			return $?
 			;;
+		global)
+			COMPREPLY=($(compgen -W "${subcommands[*]}" -- "$cur"))
+			return 0
+			;;
+		esac
+		;;
 	esac
 
 	return 1
@@ -507,14 +507,14 @@ _yarn_help() {
 	((depth++))
 	declare -i args
 	case "$cur" in
-		-*) ;;
-		*)
-			__yarn_count_args -d $depth
-			if ((args == 0)); then
-				COMPREPLY=($(compgen -W "${commands[*]}" -- "$cur"))
-				return 0
-			fi
-			;;
+	-*) ;;
+	*)
+		__yarn_count_args -d $depth
+		if ((args == 0)); then
+			COMPREPLY=($(compgen -W "${commands[*]}" -- "$cur"))
+			return 0
+		fi
+		;;
 	esac
 	return 1
 }
@@ -552,24 +552,24 @@ _yarn_info() {
 	__yarn_count_args -d $depth
 
 	case "$cur" in
-		-*) ;;
-		*)
-			case "$args" in
-				0)
-					COMPREPLY=(
-						$(compgen -W "
+	-*) ;;
+	*)
+		case "$args" in
+		0)
+			COMPREPLY=(
+				$(compgen -W "
 							$(__yarn_get_package_fields dependencies)
 							$(__yarn_get_package_fields devDependencies)
 							" -- "$cur")
-					)
-					return 0
-					;;
-				1)
-					COMPREPLY=($(compgen -W "${standard_fields[*]}" -- "$cur"))
-					return 0
-					;;
-			esac
+			)
+			return 0
 			;;
+		1)
+			COMPREPLY=($(compgen -W "${standard_fields[*]}" -- "$cur"))
+			return 0
+			;;
+		esac
+		;;
 	esac
 	return 1
 }
@@ -600,16 +600,16 @@ _yarn_licenses() {
 		generate-disclaimer
 	)
 	case "$cur" in
-		-*) ;;
-		*)
-			__yarn_get_command
-			case "$cmd" in
-				licenses)
-					COMPREPLY=($(compgen -W "${subcommands[*]}" -- "$cur"))
-					return 0
-					;;
-			esac
+	-*) ;;
+	*)
+		__yarn_get_command
+		case "$cmd" in
+		licenses)
+			COMPREPLY=($(compgen -W "${subcommands[*]}" -- "$cur"))
+			return 0
 			;;
+		esac
+		;;
 	esac
 	return 1
 }
@@ -634,16 +634,16 @@ _yarn_node() {
 _yarn_outdated() {
 	((depth++))
 	case "$cur" in
-		-*) ;;
-		*)
-			COMPREPLY=(
-				$(compgen -W "
+	-*) ;;
+	*)
+		COMPREPLY=(
+			$(compgen -W "
 					$(__yarn_get_package_fields dependencies)
 					$(__yarn_get_package_fields devDependencies)
 					" -- "$cur")
-			)
-			return 0
-			;;
+		)
+		return 0
+		;;
 	esac
 	return 1
 }
@@ -659,11 +659,11 @@ _yarn_owner() {
 	__yarn_get_command
 	if [[ $cmd == owner ]]; then
 		case "$cur" in
-			-*) ;;
-			*)
-				COMPREPLY=($(compgen -W "${subcommands[*]}" -- "$cur"))
-				return 0
-				;;
+		-*) ;;
+		*)
+			COMPREPLY=($(compgen -W "${subcommands[*]}" -- "$cur"))
+			return 0
+			;;
 		esac
 	fi
 	return 1
@@ -689,15 +689,15 @@ _yarn_policies() {
 	__yarn_count_args -d $depth
 
 	case "$cur" in
-		-*) ;;
-		*)
-			case "$args" in
-				0)
-					COMPREPLY=($(compgen -W "${standard_policies[*]}" -- "$cur"))
-					return 0
-					;;
-			esac
+	-*) ;;
+	*)
+		case "$args" in
+		0)
+			COMPREPLY=($(compgen -W "${standard_policies[*]}" -- "$cur"))
+			return 0
 			;;
+		esac
+		;;
 	esac
 	return 1
 }
@@ -731,24 +731,24 @@ _yarn_remove() {
 	)
 	__yarn_get_command -d 1
 	case "$cmd" in
-		global)
-			dependencies=$(__yarn_get_package_fields -g dependencies)
-			devDependencies=''
-			;;
-		remove)
-			dependencies=$(__yarn_get_package_fields dependencies)
-			devDependencies=$(__yarn_get_package_fields devDependencies)
-			;;
-		*)
-			return 1
-			;;
+	global)
+		dependencies=$(__yarn_get_package_fields -g dependencies)
+		devDependencies=''
+		;;
+	remove)
+		dependencies=$(__yarn_get_package_fields dependencies)
+		devDependencies=$(__yarn_get_package_fields devDependencies)
+		;;
+	*)
+		return 1
+		;;
 	esac
 	case "$cur" in
-		-*) ;;
-		*)
-			COMPREPLY=($(compgen -W "$dependencies $devDependencies" -- "$cur"))
-			return 0
-			;;
+	-*) ;;
+	*)
+		COMPREPLY=($(compgen -W "$dependencies $devDependencies" -- "$cur"))
+		return 0
+		;;
 	esac
 	return 1
 }
@@ -763,11 +763,11 @@ _yarn_run() {
 	__yarn_get_command
 	if [[ $cmd == run ]]; then
 		case "$cur" in
-			-*) ;;
-			*)
-				COMPREPLY=($(compgen -W "${subcommands[*]}" -- "$cur"))
-				return 0
-				;;
+		-*) ;;
+		*)
+			COMPREPLY=($(compgen -W "${subcommands[*]}" -- "$cur"))
+			return 0
+			;;
 		esac
 	fi
 	return 1
@@ -783,15 +783,15 @@ _yarn_tag() {
 	)
 	__yarn_get_command
 	case "$cmd" in
-		tag)
-			case "$cur" in
-				-*) ;;
-				*)
-					COMPREPLY=($(compgen -W "${subcommands[*]}" -- "$cur"))
-					return 0
-					;;
-			esac
+	tag)
+		case "$cur" in
+		-*) ;;
+		*)
+			COMPREPLY=($(compgen -W "${subcommands[*]}" -- "$cur"))
+			return 0
 			;;
+		esac
+		;;
 	esac
 	return 1
 }
@@ -808,15 +808,15 @@ _yarn_team() {
 	)
 	__yarn_get_command
 	case "$cmd" in
-		team)
-			case "$cur" in
-				-*) ;;
-				*)
-					COMPREPLY=($(compgen -W "${subcommands[*]}" -- "$cur"))
-					return 0
-					;;
-			esac
+	team)
+		case "$cur" in
+		-*) ;;
+		*)
+			COMPREPLY=($(compgen -W "${subcommands[*]}" -- "$cur"))
+			return 0
 			;;
+		esac
+		;;
 	esac
 	return 1
 }
@@ -828,16 +828,16 @@ _yarn_unplug() {
 		--clear-all
 	)
 	case "$cur" in
-		-*) ;;
-		*)
-			COMPREPLY=(
-				$(compgen -W "
+	-*) ;;
+	*)
+		COMPREPLY=(
+			$(compgen -W "
 					$(__yarn_get_package_fields dependencies)
 					$(__yarn_get_package_fields devDependencies)
 					" -- "$cur")
-			)
-			return 0
-			;;
+		)
+		return 0
+		;;
 
 	esac
 	return 1
@@ -857,24 +857,24 @@ _yarn_upgrade() {
 	)
 	__yarn_get_command -d 1
 	case "$cmd" in
-		global)
-			dependencies=$(__yarn_get_package_fields -g dependencies)
-			devDependencies=''
-			;;
-		upgrade)
-			dependencies=$(__yarn_get_package_fields dependencies)
-			devDependencies=$(__yarn_get_package_fields devDependencies)
-			;;
-		*)
-			return 1
-			;;
+	global)
+		dependencies=$(__yarn_get_package_fields -g dependencies)
+		devDependencies=''
+		;;
+	upgrade)
+		dependencies=$(__yarn_get_package_fields dependencies)
+		devDependencies=$(__yarn_get_package_fields devDependencies)
+		;;
+	*)
+		return 1
+		;;
 	esac
 	case "$cur" in
-		-*) ;;
-		*)
-			COMPREPLY=($(compgen -W "$dependencies $devDependencies" -- "$cur"))
-			return 0
-			;;
+	-*) ;;
+	*)
+		COMPREPLY=($(compgen -W "$dependencies $devDependencies" -- "$cur"))
+		return 0
+		;;
 	esac
 	return 1
 }
@@ -916,42 +916,42 @@ _yarn_workspace() {
 	declare workspaces_info
 
 	case "$cur" in
-		-*) ;;
-		*)
-			__yarn_count_args
-			case "$args" in
-				[0-2])
-					workspaces_info=$(yarn workspaces info -s 2> /dev/null)
-					if [[ -n $workspaces_info ]]; then
-						mapfile -t < <(
-							sed -n 's/^ \{2\}"\([^"]*\)": {$/\1/p' <<< "$workspaces_info"
-						)
-						COMPREPLY=($(compgen -W "${MAPFILE[*]}" -- "$cur"))
-					fi
-					return 0
-					;;
-				3)
-					COMPREPLY=($(compgen -W "${commands[*]}" -- "$cur"))
-					return 0
-					;;
-				*)
-					declare cmd
-					workspaces_info=$(yarn workspaces info -s 2> /dev/null)
-
-					if [[ -n $workspaces_info ]]; then
-						PWD=$(
-							sed -n '/^ \{2\}"'"${COMP_WORDS[2]}"'": {$/,/^ \{2\}},\{0,1\}$/{
-								s/^ \{4\}"location": "\([^"]*\)",$/\1/p
-							}' <<< "$workspaces_info"
-						)
-					fi
-
-					__yarn_get_command -d 3
-					"_yarn_${cmd//-/_}" 2> /dev/null
-					return $?
-					;;
-			esac
+	-*) ;;
+	*)
+		__yarn_count_args
+		case "$args" in
+		[0-2])
+			workspaces_info=$(yarn workspaces info -s 2>/dev/null)
+			if [[ -n $workspaces_info ]]; then
+				mapfile -t < <(
+					sed -n 's/^ \{2\}"\([^"]*\)": {$/\1/p' <<<"$workspaces_info"
+				)
+				COMPREPLY=($(compgen -W "${MAPFILE[*]}" -- "$cur"))
+			fi
+			return 0
 			;;
+		3)
+			COMPREPLY=($(compgen -W "${commands[*]}" -- "$cur"))
+			return 0
+			;;
+		*)
+			declare cmd
+			workspaces_info=$(yarn workspaces info -s 2>/dev/null)
+
+			if [[ -n $workspaces_info ]]; then
+				PWD=$(
+					sed -n '/^ \{2\}"'"${COMP_WORDS[2]}"'": {$/,/^ \{2\}},\{0,1\}$/{
+								s/^ \{4\}"location": "\([^"]*\)",$/\1/p
+							}' <<<"$workspaces_info"
+				)
+			fi
+
+			__yarn_get_command -d 3
+			"_yarn_${cmd//-/_}" 2>/dev/null
+			return $?
+			;;
+		esac
+		;;
 	esac
 	return 1
 }
@@ -965,22 +965,22 @@ _yarn_workspaces() {
 	)
 	__yarn_get_command -d 4
 	case "$cmd" in
-		workspaces)
-			case "$cur" in
-				-*) ;;
-				*)
-					COMPREPLY=($(compgen -W "${subcommands[*]}" -- "$cur"))
-					return 0
-					;;
-			esac
-			;;
-		info)
+	workspaces)
+		case "$cur" in
+		-*) ;;
+		*)
+			COMPREPLY=($(compgen -W "${subcommands[*]}" -- "$cur"))
 			return 0
 			;;
-		run)
-			__yarn_run
-			return 0
-			;;
+		esac
+		;;
+	info)
+		return 0
+		;;
+	run)
+		__yarn_run
+		return 0
+		;;
 	esac
 	return 1
 }
@@ -988,16 +988,16 @@ _yarn_workspaces() {
 _yarn_why() {
 	((depth++))
 	case "$cur" in
-		-*) ;;
-		./*)
-			compopt -o filenames
-			;;
-		*)
-			declare modules
-			modules=$(yarn list --depth 0 | sed -n 's/.* \([a-zA-Z0-9@].*\)@.*/\1/p') || return 1
-			COMPREPLY=($(compgen -W "$modules" -- "$cur"))
-			return 0
-			;;
+	-*) ;;
+	./*)
+		compopt -o filenames
+		;;
+	*)
+		declare modules
+		modules=$(yarn list --depth 0 | sed -n 's/.* \([a-zA-Z0-9@].*\)@.*/\1/p') || return 1
+		COMPREPLY=($(compgen -W "$modules" -- "$cur"))
+		return 0
+		;;
 	esac
 	return 1
 }
@@ -1005,11 +1005,11 @@ _yarn_why() {
 _yarn_yarn() {
 	((depth++))
 	case "$cur" in
-		-*) ;;
-		*)
-			COMPREPLY=($(compgen -W "${commands[*]}" -- "$cur"))
-			return 0
-			;;
+	-*) ;;
+	*)
+		COMPREPLY=($(compgen -W "${commands[*]}" -- "$cur"))
+		return 0
+		;;
 	esac
 	return 1
 }
@@ -1186,17 +1186,17 @@ _yarn() {
 	declare -a flags=()
 
 	COMPREPLY=()
-	if command -v _get_comp_words_by_ref > /dev/null; then
+	if command -v _get_comp_words_by_ref >/dev/null; then
 		_get_comp_words_by_ref -n = -n @ -n : cur prev words cword
-	elif command -v _init_completion > /dev/null; then
+	elif command -v _init_completion >/dev/null; then
 		_init_completion
 	fi
 
 	__yarn_get_command -d 1
 
-	__yarn_flag_args || "_yarn_${cmd//-/_}" 2> /dev/null || __yarn_fallback
+	__yarn_flag_args || "_yarn_${cmd//-/_}" 2>/dev/null || __yarn_fallback
 
-	if command -v __ltrim_colon_completions > /dev/null; then
+	if command -v __ltrim_colon_completions >/dev/null; then
 		__ltrim_colon_completions "$cur"
 	fi
 }

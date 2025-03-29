@@ -1,43 +1,39 @@
 # bash completion for kustomize                            -*- shell-script -*-
 
-__kustomize_debug()
-{
+__kustomize_debug() {
     if [[ -n ${BASH_COMP_DEBUG_FILE:-} ]]; then
-        echo "$*" >> "${BASH_COMP_DEBUG_FILE}"
+        echo "$*" >>"${BASH_COMP_DEBUG_FILE}"
     fi
 }
 
 # Homebrew on Macs have version 1.3 of bash-completion which doesn't include
 # _init_completion. This is a very minimal version of that function.
-__kustomize_init_completion()
-{
+__kustomize_init_completion() {
     COMPREPLY=()
     _get_comp_words_by_ref "$@" cur prev words cword
 }
 
-__kustomize_index_of_word()
-{
+__kustomize_index_of_word() {
     local w word=$1
     shift
     index=0
     for w in "$@"; do
         [[ $w = "$word" ]] && return
-        index=$((index+1))
+        index=$((index + 1))
     done
     index=-1
 }
 
-__kustomize_contains_word()
-{
-    local w word=$1; shift
+__kustomize_contains_word() {
+    local w word=$1
+    shift
     for w in "$@"; do
         [[ $w = "$word" ]] && return
     done
     return 1
 }
 
-__kustomize_handle_go_custom_completion()
-{
+__kustomize_handle_go_custom_completion() {
     __kustomize_debug "${FUNCNAME[0]}: cur is ${cur}, words[*] is ${words[*]}, #words[@] is ${#words[@]}"
 
     local shellCompDirectiveError=1
@@ -54,8 +50,8 @@ __kustomize_handle_go_custom_completion()
     # Disable ActiveHelp which is not supported for bash completion v1
     requestComp="KUSTOMIZE_ACTIVE_HELP=0 ${words[0]} __completeNoDesc ${args[*]}"
 
-    lastParam=${words[$((${#words[@]}-1))]}
-    lastChar=${lastParam:$((${#lastParam}-1)):1}
+    lastParam=${words[$((${#words[@]} - 1))]}
+    lastChar=${lastParam:$((${#lastParam} - 1)):1}
     __kustomize_debug "${FUNCNAME[0]}: lastParam ${lastParam}, lastChar ${lastChar}"
 
     if [ -z "${cur}" ] && [ "${lastChar}" != "=" ]; then
@@ -130,56 +126,55 @@ __kustomize_handle_go_custom_completion()
     fi
 }
 
-__kustomize_handle_reply()
-{
+__kustomize_handle_reply() {
     __kustomize_debug "${FUNCNAME[0]}"
     local comp
     case $cur in
-        -*)
+    -*)
+        if [[ $(type -t compopt) = "builtin" ]]; then
+            compopt -o nospace
+        fi
+        local allflags
+        if [ ${#must_have_one_flag[@]} -ne 0 ]; then
+            allflags=("${must_have_one_flag[@]}")
+        else
+            allflags=("${flags[*]} ${two_word_flags[*]}")
+        fi
+        while IFS='' read -r comp; do
+            COMPREPLY+=("$comp")
+        done < <(compgen -W "${allflags[*]}" -- "$cur")
+        if [[ $(type -t compopt) = "builtin" ]]; then
+            [[ "${COMPREPLY[0]}" == *= ]] || compopt +o nospace
+        fi
+
+        # complete after --flag=abc
+        if [[ $cur == *=* ]]; then
             if [[ $(type -t compopt) = "builtin" ]]; then
-                compopt -o nospace
-            fi
-            local allflags
-            if [ ${#must_have_one_flag[@]} -ne 0 ]; then
-                allflags=("${must_have_one_flag[@]}")
-            else
-                allflags=("${flags[*]} ${two_word_flags[*]}")
-            fi
-            while IFS='' read -r comp; do
-                COMPREPLY+=("$comp")
-            done < <(compgen -W "${allflags[*]}" -- "$cur")
-            if [[ $(type -t compopt) = "builtin" ]]; then
-                [[ "${COMPREPLY[0]}" == *= ]] || compopt +o nospace
+                compopt +o nospace
             fi
 
-            # complete after --flag=abc
-            if [[ $cur == *=* ]]; then
-                if [[ $(type -t compopt) = "builtin" ]]; then
-                    compopt +o nospace
-                fi
-
-                local index flag
-                flag="${cur%=*}"
-                __kustomize_index_of_word "${flag}" "${flags_with_completion[@]}"
-                COMPREPLY=()
-                if [[ ${index} -ge 0 ]]; then
-                    PREFIX=""
-                    cur="${cur#*=}"
-                    ${flags_completion[${index}]}
-                    if [ -n "${ZSH_VERSION:-}" ]; then
-                        # zsh completion needs --flag= prefix
-                        eval "COMPREPLY=( \"\${COMPREPLY[@]/#/${flag}=}\" )"
-                    fi
+            local index flag
+            flag="${cur%=*}"
+            __kustomize_index_of_word "${flag}" "${flags_with_completion[@]}"
+            COMPREPLY=()
+            if [[ ${index} -ge 0 ]]; then
+                PREFIX=""
+                cur="${cur#*=}"
+                ${flags_completion[${index}]}
+                if [ -n "${ZSH_VERSION:-}" ]; then
+                    # zsh completion needs --flag= prefix
+                    eval "COMPREPLY=( \"\${COMPREPLY[@]/#/${flag}=}\" )"
                 fi
             fi
+        fi
 
-            if [[ -z "${flag_parsing_disabled}" ]]; then
-                # If flag parsing is enabled, we have completed the flags and can return.
-                # If flag parsing is disabled, we may not know all (or any) of the flags, so we fallthrough
-                # to possibly call handle_go_custom_completion.
-                return 0;
-            fi
-            ;;
+        if [[ -z "${flag_parsing_disabled}" ]]; then
+            # If flag parsing is enabled, we have completed the flags and can return.
+            # If flag parsing is disabled, we may not know all (or any) of the flags, so we fallthrough
+            # to possibly call handle_go_custom_completion.
+            return 0
+        fi
+        ;;
     esac
 
     # check if we are handling a flag with special work handling
@@ -234,25 +229,22 @@ __kustomize_handle_reply()
     # If there is only 1 completion and it is a flag with an = it will be completed
     # but we don't want a space after the =
     if [[ "${#COMPREPLY[@]}" -eq "1" ]] && [[ $(type -t compopt) = "builtin" ]] && [[ "${COMPREPLY[0]}" == --*= ]]; then
-       compopt -o nospace
+        compopt -o nospace
     fi
 }
 
 # The arguments should be in the form "ext1|ext2|extn"
-__kustomize_handle_filename_extension_flag()
-{
+__kustomize_handle_filename_extension_flag() {
     local ext="$1"
     _filedir "@(${ext})"
 }
 
-__kustomize_handle_subdirs_in_dir_flag()
-{
+__kustomize_handle_subdirs_in_dir_flag() {
     local dir="$1"
     pushd "${dir}" >/dev/null 2>&1 && _filedir -d && popd >/dev/null 2>&1 || return
 }
 
-__kustomize_handle_flag()
-{
+__kustomize_handle_flag() {
     __kustomize_debug "${FUNCNAME[0]}: c is $c words[c] is ${words[c]}"
 
     # if a command required a flag, and we found it, unset must_have_one_flag()
@@ -261,8 +253,8 @@ __kustomize_handle_flag()
     # if the word contained an =
     if [[ ${words[c]} == *"="* ]]; then
         flagvalue=${flagname#*=} # take in as flagvalue after the =
-        flagname=${flagname%=*} # strip everything after the =
-        flagname="${flagname}=" # but put the = back
+        flagname=${flagname%=*}  # strip everything after the =
+        flagname="${flagname}="  # but put the = back
     fi
     __kustomize_debug "${FUNCNAME[0]}: looking for ${flagname}"
     if __kustomize_contains_word "${flagname}" "${must_have_one_flag[@]}"; then
@@ -271,16 +263,16 @@ __kustomize_handle_flag()
 
     # if you set a flag which only applies to this command, don't show subcommands
     if __kustomize_contains_word "${flagname}" "${local_nonpersistent_flags[@]}"; then
-      commands=()
+        commands=()
     fi
 
     # keep flag value with flagname as flaghash
     # flaghash variable is an associative array which is only supported in bash > 3.
     if [[ -z "${BASH_VERSION:-}" || "${BASH_VERSINFO[0]:-}" -gt 3 ]]; then
-        if [ -n "${flagvalue}" ] ; then
+        if [ -n "${flagvalue}" ]; then
             flaghash[${flagname}]=${flagvalue}
-        elif [ -n "${words[ $((c+1)) ]}" ] ; then
-            flaghash[${flagname}]=${words[ $((c+1)) ]}
+        elif [ -n "${words[$((c + 1))]}" ]; then
+            flaghash[${flagname}]=${words[$((c + 1))]}
         else
             flaghash[${flagname}]="true" # pad "true" for bool flag
         fi
@@ -289,19 +281,18 @@ __kustomize_handle_flag()
     # skip the argument to a two word flag
     if [[ ${words[c]} != *"="* ]] && __kustomize_contains_word "${words[c]}" "${two_word_flags[@]}"; then
         __kustomize_debug "${FUNCNAME[0]}: found a flag ${words[c]}, skip the next argument"
-        c=$((c+1))
+        c=$((c + 1))
         # if we are looking for a flags value, don't show commands
         if [[ $c -eq $cword ]]; then
             commands=()
         fi
     fi
 
-    c=$((c+1))
+    c=$((c + 1))
 
 }
 
-__kustomize_handle_noun()
-{
+__kustomize_handle_noun() {
     __kustomize_debug "${FUNCNAME[0]}: c is $c words[c] is ${words[c]}"
 
     if __kustomize_contains_word "${words[c]}" "${must_have_one_noun[@]}"; then
@@ -311,11 +302,10 @@ __kustomize_handle_noun()
     fi
 
     nouns+=("${words[c]}")
-    c=$((c+1))
+    c=$((c + 1))
 }
 
-__kustomize_handle_command()
-{
+__kustomize_handle_command() {
     __kustomize_debug "${FUNCNAME[0]}: c is $c words[c] is ${words[c]}"
 
     local next_command
@@ -328,13 +318,12 @@ __kustomize_handle_command()
             next_command="_${words[c]//:/__}"
         fi
     fi
-    c=$((c+1))
+    c=$((c + 1))
     __kustomize_debug "${FUNCNAME[0]}: looking for ${next_command}"
     declare -F "$next_command" >/dev/null && $next_command
 }
 
-__kustomize_handle_word()
-{
+__kustomize_handle_word() {
     if [[ $c -ge $cword ]]; then
         __kustomize_handle_reply
         return
@@ -360,8 +349,7 @@ __kustomize_handle_word()
     __kustomize_handle_word
 }
 
-_kustomize_build()
-{
+_kustomize_build() {
     last_command="kustomize_build"
 
     command_aliases=()
@@ -431,8 +419,7 @@ _kustomize_build()
     noun_aliases=()
 }
 
-_kustomize_cfg_cat()
-{
+_kustomize_cfg_cat() {
     last_command="kustomize_cfg_cat"
 
     command_aliases=()
@@ -486,8 +473,7 @@ _kustomize_cfg_cat()
     noun_aliases=()
 }
 
-_kustomize_cfg_count()
-{
+_kustomize_cfg_count() {
     last_command="kustomize_cfg_count"
 
     command_aliases=()
@@ -513,8 +499,7 @@ _kustomize_cfg_count()
     noun_aliases=()
 }
 
-_kustomize_cfg_grep()
-{
+_kustomize_cfg_grep() {
     last_command="kustomize_cfg_grep"
 
     command_aliases=()
@@ -542,8 +527,7 @@ _kustomize_cfg_grep()
     noun_aliases=()
 }
 
-_kustomize_cfg_tree()
-{
+_kustomize_cfg_tree() {
     last_command="kustomize_cfg_tree"
 
     command_aliases=()
@@ -593,8 +577,7 @@ _kustomize_cfg_tree()
     noun_aliases=()
 }
 
-_kustomize_cfg()
-{
+_kustomize_cfg() {
     last_command="kustomize_cfg"
 
     command_aliases=()
@@ -618,8 +601,7 @@ _kustomize_cfg()
     noun_aliases=()
 }
 
-_kustomize_completion()
-{
+_kustomize_completion() {
     last_command="kustomize_completion"
 
     command_aliases=()
@@ -647,8 +629,7 @@ _kustomize_completion()
     noun_aliases=()
 }
 
-_kustomize_create()
-{
+_kustomize_create() {
     last_command="kustomize_create"
 
     command_aliases=()
@@ -696,8 +677,7 @@ _kustomize_create()
     noun_aliases=()
 }
 
-_kustomize_edit_add_annotation()
-{
+_kustomize_edit_add_annotation() {
     last_command="kustomize_edit_add_annotation"
 
     command_aliases=()
@@ -721,8 +701,7 @@ _kustomize_edit_add_annotation()
     noun_aliases=()
 }
 
-_kustomize_edit_add_base()
-{
+_kustomize_edit_add_base() {
     last_command="kustomize_edit_add_base"
 
     command_aliases=()
@@ -742,8 +721,7 @@ _kustomize_edit_add_base()
     noun_aliases=()
 }
 
-_kustomize_edit_add_buildmetadata()
-{
+_kustomize_edit_add_buildmetadata() {
     last_command="kustomize_edit_add_buildmetadata"
 
     command_aliases=()
@@ -763,8 +741,7 @@ _kustomize_edit_add_buildmetadata()
     noun_aliases=()
 }
 
-_kustomize_edit_add_component()
-{
+_kustomize_edit_add_component() {
     last_command="kustomize_edit_add_component"
 
     command_aliases=()
@@ -784,8 +761,7 @@ _kustomize_edit_add_component()
     noun_aliases=()
 }
 
-_kustomize_edit_add_configmap()
-{
+_kustomize_edit_add_configmap() {
     last_command="kustomize_edit_add_configmap"
 
     command_aliases=()
@@ -827,8 +803,7 @@ _kustomize_edit_add_configmap()
     noun_aliases=()
 }
 
-_kustomize_edit_add_generator()
-{
+_kustomize_edit_add_generator() {
     last_command="kustomize_edit_add_generator"
 
     command_aliases=()
@@ -848,8 +823,7 @@ _kustomize_edit_add_generator()
     noun_aliases=()
 }
 
-_kustomize_edit_add_label()
-{
+_kustomize_edit_add_label() {
     last_command="kustomize_edit_add_label"
 
     command_aliases=()
@@ -877,8 +851,7 @@ _kustomize_edit_add_label()
     noun_aliases=()
 }
 
-_kustomize_edit_add_patch()
-{
+_kustomize_edit_add_patch() {
     last_command="kustomize_edit_add_patch"
 
     command_aliases=()
@@ -934,8 +907,7 @@ _kustomize_edit_add_patch()
     noun_aliases=()
 }
 
-_kustomize_edit_add_resource()
-{
+_kustomize_edit_add_resource() {
     last_command="kustomize_edit_add_resource"
 
     command_aliases=()
@@ -957,8 +929,7 @@ _kustomize_edit_add_resource()
     noun_aliases=()
 }
 
-_kustomize_edit_add_secret()
-{
+_kustomize_edit_add_secret() {
     last_command="kustomize_edit_add_secret"
 
     command_aliases=()
@@ -1000,8 +971,7 @@ _kustomize_edit_add_secret()
     noun_aliases=()
 }
 
-_kustomize_edit_add_transformer()
-{
+_kustomize_edit_add_transformer() {
     last_command="kustomize_edit_add_transformer"
 
     command_aliases=()
@@ -1021,8 +991,7 @@ _kustomize_edit_add_transformer()
     noun_aliases=()
 }
 
-_kustomize_edit_add()
-{
+_kustomize_edit_add() {
     last_command="kustomize_edit_add"
 
     command_aliases=()
@@ -1053,8 +1022,7 @@ _kustomize_edit_add()
     noun_aliases=()
 }
 
-_kustomize_edit_alpha-list-builtin-plugin()
-{
+_kustomize_edit_alpha-list-builtin-plugin() {
     last_command="kustomize_edit_alpha-list-builtin-plugin"
 
     command_aliases=()
@@ -1074,8 +1042,7 @@ _kustomize_edit_alpha-list-builtin-plugin()
     noun_aliases=()
 }
 
-_kustomize_edit_fix()
-{
+_kustomize_edit_fix() {
     last_command="kustomize_edit_fix"
 
     command_aliases=()
@@ -1097,8 +1064,7 @@ _kustomize_edit_fix()
     noun_aliases=()
 }
 
-_kustomize_edit_remove_annotation()
-{
+_kustomize_edit_remove_annotation() {
     last_command="kustomize_edit_remove_annotation"
 
     command_aliases=()
@@ -1122,8 +1088,7 @@ _kustomize_edit_remove_annotation()
     noun_aliases=()
 }
 
-_kustomize_edit_remove_buildmetadata()
-{
+_kustomize_edit_remove_buildmetadata() {
     last_command="kustomize_edit_remove_buildmetadata"
 
     command_aliases=()
@@ -1143,8 +1108,7 @@ _kustomize_edit_remove_buildmetadata()
     noun_aliases=()
 }
 
-_kustomize_edit_remove_configmap()
-{
+_kustomize_edit_remove_configmap() {
     last_command="kustomize_edit_remove_configmap"
 
     command_aliases=()
@@ -1168,8 +1132,7 @@ _kustomize_edit_remove_configmap()
     noun_aliases=()
 }
 
-_kustomize_edit_remove_label()
-{
+_kustomize_edit_remove_label() {
     last_command="kustomize_edit_remove_label"
 
     command_aliases=()
@@ -1193,8 +1156,7 @@ _kustomize_edit_remove_label()
     noun_aliases=()
 }
 
-_kustomize_edit_remove_patch()
-{
+_kustomize_edit_remove_patch() {
     last_command="kustomize_edit_remove_patch"
 
     command_aliases=()
@@ -1250,8 +1212,7 @@ _kustomize_edit_remove_patch()
     noun_aliases=()
 }
 
-_kustomize_edit_remove_resource()
-{
+_kustomize_edit_remove_resource() {
     last_command="kustomize_edit_remove_resource"
 
     command_aliases=()
@@ -1271,8 +1232,7 @@ _kustomize_edit_remove_resource()
     noun_aliases=()
 }
 
-_kustomize_edit_remove_secret()
-{
+_kustomize_edit_remove_secret() {
     last_command="kustomize_edit_remove_secret"
 
     command_aliases=()
@@ -1296,8 +1256,7 @@ _kustomize_edit_remove_secret()
     noun_aliases=()
 }
 
-_kustomize_edit_remove_transformer()
-{
+_kustomize_edit_remove_transformer() {
     last_command="kustomize_edit_remove_transformer"
 
     command_aliases=()
@@ -1317,8 +1276,7 @@ _kustomize_edit_remove_transformer()
     noun_aliases=()
 }
 
-_kustomize_edit_remove()
-{
+_kustomize_edit_remove() {
     last_command="kustomize_edit_remove"
 
     command_aliases=()
@@ -1346,8 +1304,7 @@ _kustomize_edit_remove()
     noun_aliases=()
 }
 
-_kustomize_edit_set_annotation()
-{
+_kustomize_edit_set_annotation() {
     last_command="kustomize_edit_set_annotation"
 
     command_aliases=()
@@ -1367,8 +1324,7 @@ _kustomize_edit_set_annotation()
     noun_aliases=()
 }
 
-_kustomize_edit_set_buildmetadata()
-{
+_kustomize_edit_set_buildmetadata() {
     last_command="kustomize_edit_set_buildmetadata"
 
     command_aliases=()
@@ -1388,8 +1344,7 @@ _kustomize_edit_set_buildmetadata()
     noun_aliases=()
 }
 
-_kustomize_edit_set_configmap()
-{
+_kustomize_edit_set_configmap() {
     last_command="kustomize_edit_set_configmap"
 
     command_aliases=()
@@ -1421,8 +1376,7 @@ _kustomize_edit_set_configmap()
     noun_aliases=()
 }
 
-_kustomize_edit_set_image()
-{
+_kustomize_edit_set_image() {
     last_command="kustomize_edit_set_image"
 
     command_aliases=()
@@ -1442,8 +1396,7 @@ _kustomize_edit_set_image()
     noun_aliases=()
 }
 
-_kustomize_edit_set_label()
-{
+_kustomize_edit_set_label() {
     last_command="kustomize_edit_set_label"
 
     command_aliases=()
@@ -1463,8 +1416,7 @@ _kustomize_edit_set_label()
     noun_aliases=()
 }
 
-_kustomize_edit_set_nameprefix()
-{
+_kustomize_edit_set_nameprefix() {
     last_command="kustomize_edit_set_nameprefix"
 
     command_aliases=()
@@ -1484,8 +1436,7 @@ _kustomize_edit_set_nameprefix()
     noun_aliases=()
 }
 
-_kustomize_edit_set_namespace()
-{
+_kustomize_edit_set_namespace() {
     last_command="kustomize_edit_set_namespace"
 
     command_aliases=()
@@ -1505,8 +1456,7 @@ _kustomize_edit_set_namespace()
     noun_aliases=()
 }
 
-_kustomize_edit_set_namesuffix()
-{
+_kustomize_edit_set_namesuffix() {
     last_command="kustomize_edit_set_namesuffix"
 
     command_aliases=()
@@ -1526,8 +1476,7 @@ _kustomize_edit_set_namesuffix()
     noun_aliases=()
 }
 
-_kustomize_edit_set_replicas()
-{
+_kustomize_edit_set_replicas() {
     last_command="kustomize_edit_set_replicas"
 
     command_aliases=()
@@ -1547,8 +1496,7 @@ _kustomize_edit_set_replicas()
     noun_aliases=()
 }
 
-_kustomize_edit_set_secret()
-{
+_kustomize_edit_set_secret() {
     last_command="kustomize_edit_set_secret"
 
     command_aliases=()
@@ -1580,8 +1528,7 @@ _kustomize_edit_set_secret()
     noun_aliases=()
 }
 
-_kustomize_edit_set()
-{
+_kustomize_edit_set() {
     last_command="kustomize_edit_set"
 
     command_aliases=()
@@ -1611,8 +1558,7 @@ _kustomize_edit_set()
     noun_aliases=()
 }
 
-_kustomize_edit()
-{
+_kustomize_edit() {
     last_command="kustomize_edit"
 
     command_aliases=()
@@ -1637,8 +1583,7 @@ _kustomize_edit()
     noun_aliases=()
 }
 
-_kustomize_fn_run()
-{
+_kustomize_fn_run() {
     last_command="kustomize_fn_run"
 
     command_aliases=()
@@ -1698,8 +1643,7 @@ _kustomize_fn_run()
     noun_aliases=()
 }
 
-_kustomize_fn()
-{
+_kustomize_fn() {
     last_command="kustomize_fn"
 
     command_aliases=()
@@ -1720,8 +1664,7 @@ _kustomize_fn()
     noun_aliases=()
 }
 
-_kustomize_help()
-{
+_kustomize_help() {
     last_command="kustomize_help"
 
     command_aliases=()
@@ -1742,8 +1685,7 @@ _kustomize_help()
     noun_aliases=()
 }
 
-_kustomize_localize()
-{
+_kustomize_localize() {
     last_command="kustomize_localize"
 
     command_aliases=()
@@ -1769,8 +1711,7 @@ _kustomize_localize()
     noun_aliases=()
 }
 
-_kustomize_version()
-{
+_kustomize_version() {
     last_command="kustomize_version"
 
     command_aliases=()
@@ -1796,8 +1737,7 @@ _kustomize_version()
     noun_aliases=()
 }
 
-_kustomize_root_command()
-{
+_kustomize_root_command() {
     last_command="kustomize"
 
     command_aliases=()
@@ -1830,8 +1770,7 @@ _kustomize_root_command()
     noun_aliases=()
 }
 
-__start_kustomize()
-{
+__start_kustomize() {
     local cur prev words cword split
     declare -A flaghash 2>/dev/null || :
     declare -A aliashash 2>/dev/null || :
